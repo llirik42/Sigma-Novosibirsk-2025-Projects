@@ -25,160 +25,147 @@
 
 ## Реализация
 
-### Работа с изображениями
-
 Бот должен использовать изображения, сохранённые в директории на диске (например, можно создать папку `memes` прямо в проект PyCharm).
 
 Если бот позволяет пользователям загружать свои собственные изображения, то он должен сохранять их все либо в другую общую папку (например, `downloads`), либо создавать под каждого пользователя свою собственную папку (тогда папку можно именовать как `user-$id`, например: `user-619700989`).
 
-Для работы с изображениями можно использовать следующий фрагмент кода:
-
-```python
-import os
-from pathlib import Path
-from typing import Optional
-
-import aiofiles
-from aiogram.client.session import aiohttp
-
-
-
-async def download_photo(
-        downloads_folder_path: str,
-        file_path: str,
-        session: aiohttp.ClientSession,
-) -> str:
-    __ensure_directory_exists(downloads_folder_path)
-
-    p = Path(file_path)
-    path = f"{downloads_folder_path}/{p.name}"
-
-    async with session.get(file_path) as resp:
-        if resp.status == 200:
-            f = await aiofiles.open(path, mode='wb')
-            await f.write(await resp.read())
-            await f.close()
-
-    return path
-
-
-def get_meme_list(meme_folder_path: str) -> str:
-    __ensure_directory_exists(meme_folder_path)
-
-    result = ""
-
-    for f in os.listdir(meme_folder_path):
-        p = Path(f)
-        result += f"{p.stem}\n\n"
-
-    return result
-
-
-def find_meme(meme_folder_path: str, meme_name: str) -> Optional[str]:
-    __ensure_directory_exists(meme_folder_path)
-
-    for f in os.listdir(meme_folder_path):
-        p = Path(f)
-        if p.stem.lower() == meme_name.lower():
-            return f"{meme_folder_path}/{f}"
-
-    return None
-
-
-def __ensure_directory_exists(path: str) -> None:
-    if not os.path.exists(path):
-        os.makedirs(path)
-```
-
-Из данного фрагмента кода нужно использовать следующие функции:
-- `download_photo()` — скачать изображение пользователя,
-- `get_meme_list()` — получение списка всех доступных мемов из папки,
-- `find_meme()` — поиск мема по названию (либо возвращается путь к файлу, либо `None`).
-
-Для скачивания изображения пользователя нужно сделать 2 вещи. Во-первых, в файле `bot.py` необходимо создать объект `session`, чтобы потом его везде использовать:
-
-```python
-dp = Dispatcher()
-...
-
-async def main() -> None:
-    ...
-dp["session"] = aiohttp.ClientSession(
-    base_url=f"https://api.telegram.org/file/bot{BOT_TOKEN}/",
-)
-```
-
-> Установить библиотеку можно с помощью `pip install aiohttp`
-
-Во-вторых, чтобы скачать изображение пользователя из его сообщения, нужно сделать следующее:
-
-```python
-photo = message.photo[-1].file_id
-
-photo_file = await bot.get_file(photo)
-
-output_path = await download_photo(
-    file_path=photo_file.file_path,
-    session=...,
-    downloads_folder_path=...,
-)
-```
-
-### Генерация мемов
-
-Для генерации мемов рекомендуется использовать функцию `generate_meme()` из фрагмента кода ниже. Данная функция в качестве результата возвращает изображение, а принимает следующие параметры:
-- **image_path** — путь к изображению (например, "./memes/meme-1.jpg"),
-- **label** — текст мема,
-- **font_family** — шрифт текста (можно использовать фрагмент кода ниже для просмотра всех поддерживаем системой шрифтов). P.S. Не все шрифты поддерживают русский язык(
-- **font_size** — размер текста в каких-то условных единицах,
-- **color** — цвет текста, состоит из трёх компонент (red, green, blue), каждая со значением от 0 до 255.
-  - **(0, 0, 0)** — чёрный,
-  - **(255, 255, 255)** — белый,
-  - **(255, 0, 0)** — красный,
-  - и т.д.
-- **bottom_indent_perc** — отступ текста снизу в условных единицах, 
-- **out_format** — формат итогового изображения.
+### Рисование текста на изображении
 
 ```python
 from io import BytesIO
 
 from PIL import Image, ImageFont, ImageDraw
 
+label = "Когда регистрация на Сигму"  # Сам текст
+image_path = "../memes/cow.jpg"  # Путь к исходному изображению 
+font_family = "DejaVuSans.ttf"  # Шрифт
+font_size = 55  # Размер текста
+color = (0, 0, 0)  # Цвет текста
+bottom_indent = 7  # Отступ текста снизу в условных единицах
+out_format: str = "WEBP"  # формат итогового изображения
 
-def generate_meme(
-        image_path: str,
-        label: str,
-        font_family: str = "DejaVuSans.ttf",
-        font_size: int = 55,
-        color: tuple[int, int, int] = None,
-        bottom_indent_perc: int = 7,
-        out_format: str = "WEBP",
-) -> BytesIO:
+# Итоговое изображение 
+buffer = BytesIO()
 
-    if color is None:
-        color = (0, 0, 0)
+# Открытие исходного изображения, рисование текста, показ итогового изображения и сохранение его в буфер
+with Image.open(image_path) as im:
+    unicode_font = ImageFont.truetype(font_family, font_size)
+    xy = (im.size[0] // 2, im.size[1] - bottom_indent * im.size[1] // 100)
+    ImageDraw.Draw(im).text(
+        xy=xy,
+        text=label,
+        fill=color,
+        font=unicode_font,
+        anchor="mm",
+    )
+    im.show()
+    im.save(fp=buffer, format=out_format)
 
-    buffer = BytesIO()
-
-    with Image.open(image_path) as im:
-        unicode_font = ImageFont.truetype(font_family, font_size)
-        xy = (im.size[0] // 2, im.size[1] - bottom_indent_perc * im.size[1] // 100)
-        ImageDraw.Draw(im).text(
-            xy=xy,
-            text=label,
-            fill=color,
-            font=unicode_font,
-            anchor="mm",
-        )
-        im.save(fp=buffer, format=out_format)
-
-    buffer.seek(0)
-
-    return buffer
+# Подготовка изображения для отправки
+buffer.seek(0)
 ```
-> Установить библиотеку можно с помощью `pip install pillow`
+
+> `pip install pillow`
+
+> Цвет текста состоит из трёх компонент (red, green, blue), каждая со значением от 0 до 255.
+> - **(0, 0, 0)** — чёрный,
+> - **(255, 255, 255)** — белый,
+> - **(255, 0, 0)** — красный, 
+> и т.д.
+
+### Отправка изображений
+
+```python
+from aiogram.types import Message, BufferedInputFile
+
+async def handler(message: Message):
+    buffer = ...  # Сгенерированный мем в формате BytesIO
+
+    await message.answer_photo(
+        BufferedInputFile(
+            buffer.read(),
+            filename="Какое-то название файла для Telegram",
+        ),
+    )
+
+    buffer.close()
+```
 
 
+### Скачивание изображений из Telegram
+
+```python
+import aiofiles
+from pathlib import Path
+
+import aiohttp
+from aiogram import Bot, F
+from aiogram.types import Message, BufferedInputFile
+
+
+@router.message(F.photo)
+async def handler(message: Message, bot: Bot, session: aiohttp.ClientSession):
+    downloads_folder_path = "../downloads"  # Путь к директории, куда нужно скачать изображение
+    
+    photo = message.photo[-1].file_id  # Изображение из сообщения
+    photo_file = await bot.get_file(photo)  # Файл
+    photo_path = photo_file.file_path  # Путь к изображению в Telegram (то, с чем Telegram работает "под капотом")
+    
+    p = Path(photo_path)
+    path = f"{downloads_folder_path}/{p.name}"
+
+    async with session.get(photo_path) as resp:
+        if resp.status == 200:
+            f = await aiofiles.open(path, mode='wb')
+            await f.write(await resp.read())
+            await f.close()
+
+)
+```
+
+> `F.photo` в `@router.message` позволяет указать фильтр, то есть данный обработчик сработает лишь если сообщение будет содержать изображение
+
+> `pip install aiohttp`
+
+Для корректной работы нужно определить в `Dispatcher` значения для `bot` и `session` следующим образом:
+
+```python
+import aiohttp
+
+dp = Dispatcher()
+
+async def main() -> None:
+    ...
+    
+    bot = Bot(token="TOKEN")
+
+    ...
+    
+    dp["bot"] = bot
+    dp["session"] = aiohttp.ClientSession(
+        base_url=f"https://api.telegram.org/file/bot{"TOKEN"}/",
+    )
+    
+    ...
+    
+    await dp.start_polling(bot)
+```
+
+### Получение содержимого директории
+
+```python
+import os
+from pathlib import Path
+
+
+directory_path = "../memes"  # Путь к директории
+
+for f in os.listdir(directory_path):
+    p = Path(f)
+    print(p.name, p.stem)
+```
+
+### Получение списка всех доступных в системе шрифтов
 
 ```python
 from matplotlib import font_manager
@@ -187,28 +174,12 @@ from matplotlib import font_manager
 for n in font_manager.get_font_names():
     print(n)
 ```
-> Установить библиотеку можно с помощью `pip install matplotlib`
+> `pip install matplotlib`
 
 
-Чтобы отправить пользователь сгенерированный мем можно использовать следующий фрагмент кода:
+## Предполагаемый состав команды и роли
 
-```python
-from aiogram.types import BufferedInputFile
-
-
-meme = generate_meme(...)
-
-await message.answer_photo(
-        BufferedInputFile(
-            meme.read(),
-            filename="придумать название",
-        ),
-    )
-```
-
-### Предполагаемый состав команды и роли
-
-Всё зависит от уровня сложности (или уровень сложности от состава команды — пока не решил). Предполагаемые роли для уровня *Advanced+*:
-- 1 человек занимается функцией для генерацией мемов (проверка её работоспособности, подкручивание параметров и т.д.),
-- 1 человек занимается работой с изображениями (скачивание, получения списка изображений и т.д.),
-- 2 человека занимаются обработчиками.
+Всё зависит от уровня сложности (или уровень сложности от состава команды — пока не решил). **Приблизительные** предполагаемые роли для уровня *Advanced+*:
+- 1 человек занимается генерацией мемов,
+- 1 человек занимается работой с изображениями,
+- 2 человека занимаются обработчиками и всем остальным.
