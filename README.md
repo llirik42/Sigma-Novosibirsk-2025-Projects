@@ -1,13 +1,13 @@
 # Список проектов
 
-- [Клёвый собеседник](COOL_COMPANION.md)
-- [Генератор мемов](MEME_GENERATOR.md)
-- [Поддельный Telegram Premium](FAKE_TELEGRAM_PREMIUM.md)
-- [Гид](GUIDE.md)
-- [Учёный](SCIENTIST.md) 
-- [Генератор паролей](PASSWORD_GENERATOR.md)
-- [Сокращатель ссылок](URL_SHORTENER.md)
-- [Любитель Habr](HABR_LOVER.md)
+1. [Клёвый собеседник](COOL_COMPANION.md)
+2. [Генератор мемов](MEME_GENERATOR.md)
+3. [Поддельный Telegram Premium](FAKE_TELEGRAM_PREMIUM.md)
+4. [Гид](GUIDE.md)
+5. [Учёный](SCIENTIST.md) 
+6. [Генератор паролей](PASSWORD_GENERATOR.md)
+7. [Сокращатель ссылок](URL_SHORTENER.md)
+8. [Любитель Habr](HABR_LOVER.md)
 
 # Требования для всех проектов
 
